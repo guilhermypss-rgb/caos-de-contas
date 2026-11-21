@@ -115,6 +115,7 @@
   }
   .key:active { transform: scale(0.97); background: var(--grid); }
   .key.del { color: var(--ink-2); }
+  .key.clear { font-size: 18px; color: var(--ink-2); }
   .key svg { width: 26px; height: 26px; }
 
   /* Menu e fim de jogo */
@@ -246,6 +247,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><path d="M18 9l-6 6M12 9l6 6"/></svg>
     </button>
     <button class="key" data-k="0">0</button>
+    <button class="key clear" data-k="clear" aria-label="Limpar resposta">Limpar</button>
   </div>
 </div>
 
@@ -618,6 +620,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     if (state !== 'play') return;
     if (/^[0-9]$/.test(k)) { if (typed.length < 5) typed += k; }
     else if (k === 'back') typed = typed.slice(0, -1);
+    else if (k === 'clear') { typed = ''; clearTimeout(pending); pending = null; }
     else if (k === 'ok') { submit(); return; } // Enter on a physical keyboard
     updateAnswer();
     autoSubmit();
