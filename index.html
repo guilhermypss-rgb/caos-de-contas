@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Treino de contas de matemática em jogo: adição, subtração, multiplicação e divisão, com níveis que ficam mais difíceis.">
+<meta name="theme-color" content="#f4f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d1a2e" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Caos de Contas">
+<meta property="og:title" content="Caos de Contas">
+<meta property="og:description" content="Contas caem do topo. Digite o resultado antes que cheguem ao chão.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_BR">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Caos de Contas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+  /* Caderno quadriculado: papel azulado, grafite e tinta azul-marinho.
+     Tipografia pensada para legibilidade (dígitos com formas distintas). */
+  :root {
+    --paper: #f4f8fc; --card: #ffffff; --ink: #1b2a4a; --ink-2: #4e5f7d;
+    --grid: #dbe6f2; --rule: #b4c6dc;
+    --accent: #ffc23d; --accent-ink: #1b2a4a; --danger: #c0392b; --ok: #1f7a4d;
+    --op-add: #2563eb; --op-sub: #7c3aed; --op-mul: #d9480f; --op-div: #0f8a5f;
+    --shadow: 0 6px 16px rgba(27, 42, 74, 0.08);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0d1a2e; --card: #15243d; --ink: #e9f0fb; --ink-2: #a7b6cf;
+      --grid: #1b2c46; --rule: #2c4061;
+      --accent: #ffc23d; --accent-ink: #1b2a4a; --danger: #ff7a6b; --ok: #5ed6a1;
+      --op-add: #7fb0ff; --op-sub: #b9a0ff; --op-mul: #ff9a5c; --op-div: #6fe0b0;
+      --shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0d1a2e; --card: #15243d; --ink: #e9f0fb; --ink-2: #a7b6cf;
+    --grid: #1b2c46; --rule: #2c4061;
+    --accent: #ffc23d; --accent-ink: #1b2a4a; --danger: #ff7a6b; --ok: #5ed6a1;
+    --op-add: #7fb0ff; --op-sub: #b9a0ff; --op-mul: #ff9a5c; --op-div: #6fe0b0;
+    --shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); overflow: hidden; overscroll-behavior: none; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  body { font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  ::selection { background: var(--accent); color: var(--accent-ink); }
+  :focus-visible { outline: 3px solid var(--op-add); outline-offset: 3px; }
+  button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; touch-action: none; display: block; }
+
+  /* HUD: cabeçalho do caderno */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1;
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: max(14px, env(safe-area-inset-top)) 16px 10px;
+    background: var(--paper); border-bottom: 2px solid var(--rule);
+    pointer-events: none; font-variant-numeric: tabular-nums;
+  }
+  .stat { display: grid; gap: 2px; }
+  .stat .label { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+  .stat strong { font-size: 24px; font-weight: 700; line-height: 1; }
+  .lives { display: flex; gap: 6px; align-items: center; height: 22px; }
+  .lives i { width: 12px; height: 12px; border-radius: 50%; background: var(--danger); transition: background .3s; }
+  .lives i.lost { background: var(--rule); }
+  .hud-tools { display: flex; gap: 8px; pointer-events: auto; }
+  .hud-btn {
+    width: 44px; height: 44px; display: grid; place-items: center; padding: 0;
+    background: var(--card); color: var(--ink); border: 2px solid var(--rule); border-radius: 12px;
+  }
+  .hud-btn svg { width: 22px; height: 22px; }
+  .hud-btn:active { transform: scale(0.96); }
+
+  /* Resposta + teclado */
+  #dock {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1;
+    max-width: 440px; margin: 0 auto;
+    padding: 0 16px max(14px, env(safe-area-inset-bottom));
+    display: none;
+  }
+  #answer {
+    width: fit-content; min-width: 160px; height: 64px; margin: 0 auto; padding: 0 28px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink);
+    background: var(--card); border: 2px dashed var(--rule); border-radius: 14px;
+    transition: border-color .2s, background .2s;
+  }
+  #answer.empty { color: var(--ink-2); background: transparent; }
+  #answer:not(.empty) { border-style: solid; border-color: var(--ink); }
+  #answer.wrong { color: var(--danger); border-color: var(--danger); }
+  #answer.shake { animation: shake .4s ease; }
+  @keyframes shake {
+    20% { transform: translateX(-6px); } 40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); } 80% { transform: translateX(3px); }
+  }
+  #pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; user-select: none; -webkit-user-select: none; }
+  .key {
+    min-height: 62px; font-size: 26px; font-weight: 700; color: var(--ink);
+    background: var(--card); border: 2px solid var(--rule); border-radius: 12px;
+    display: grid; place-items: center; transition: transform .12s ease, background .2s;
+  }
+  .key:active { transform: scale(0.97); background: var(--grid); }
+  .key.del { color: var(--ink-2); }
+  .key svg { width: 26px; height: 26px; }
+
+  /* Menu e fim de jogo */
+  #screen {
+    position: fixed; inset: 0; z-index: 2; overflow-y: auto;
+    background: var(--paper);
+    padding: max(28px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-left)) max(28px, env(safe-area-inset-bottom));
+  }
+  .wrap { max-width: 440px; margin: 0 auto; display: grid; gap: 24px; }
+  .wrap > * { animation: rise .5s cubic-bezier(.2, .7, .2, 1) both; }
+  .wrap > *:nth-child(2) { animation-delay: .06s; }
+  .wrap > *:nth-child(3) { animation-delay: .12s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  h1 { margin: 0; font-size: clamp(38px, 10vw, 54px); font-weight: 700; letter-spacing: -0.01em; line-height: 1.05; text-wrap: balance; }
+  h1::after { content: ""; display: block; width: 72px; height: 6px; margin-top: 14px; border-radius: 3px; background: var(--accent); }
+  .lede { margin: 0; font-size: 18px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+
+  .modes { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .mode {
+    width: 100%; min-height: 68px; padding: 12px 16px;
+    display: flex; align-items: center; gap: 14px; text-align: left;
+    background: var(--card); color: var(--ink);
+    border: 2px solid var(--rule); border-radius: 14px; box-shadow: var(--shadow);
+    transition: transform .12s ease, border-color .2s;
+  }
+  .mode:hover { border-color: var(--ink-2); }
+  .mode:active { transform: scale(0.99); }
+  .sym {
+    flex: none; width: 46px; height: 46px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 26px; font-weight: 700; color: #ffffff;
+    background: var(--op);
+  }
+  .mode[data-op="add"] { --op: var(--op-add); }
+  .mode[data-op="sub"] { --op: var(--op-sub); }
+  .mode[data-op="mul"] { --op: var(--op-mul); }
+  .mode[data-op="div"] { --op: var(--op-div); }
+  .mode[data-op="mix"] { --op: var(--ink-2); }
+  .sym-text { display: grid; gap: 2px; }
+  .sym-text strong { font-size: 19px; font-weight: 700; }
+  .sym-text small { font-size: 15px; font-weight: 400; color: var(--ink-2); }
+
+  .btn {
+    min-height: 54px; padding: 0 24px; border: 0; border-radius: 12px;
+    font-size: 18px; font-weight: 700; background: var(--accent); color: var(--accent-ink);
+    transition: transform .12s ease;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px var(--rule); }
+  .actions { display: grid; gap: 10px; }
+
+  .custom { display: grid; gap: 10px; }
+  .opts { display: grid; gap: 8px; }
+  .opt {
+    min-height: 54px; padding: 0 16px; display: flex; align-items: center; gap: 12px;
+    background: var(--card); border: 2px solid var(--rule); border-radius: 12px;
+    font-size: 17px; font-weight: 700; cursor: pointer;
+  }
+  .opt input { width: 22px; height: 22px; margin: 0; accent-color: var(--op-add); }
+  .msg { min-height: 1.2em; margin: 0; font-size: 16px; font-weight: 700; color: var(--danger); }
+
+  .score-big { margin: 0; font-size: clamp(64px, 20vw, 88px); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .meta { margin: 0; font-size: 17px; color: var(--ink-2); }
+  .foot { font-size: 15px; text-align: center; }
+  .foot a { color: var(--ink-2); }
+  html { overscroll-behavior: none; }
+  .record { margin: 0; font-size: 17px; font-weight: 700; color: var(--ok); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wrap > * { animation: none; }
+    #answer.shake { animation: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="c" aria-hidden="true"></canvas>
+
+<div id="hud" hidden>
+  <div class="stat"><span class="label">Pontos</span><strong id="score">0</strong></div>
+  <div class="stat"><span class="label">Nível</span><strong id="level">1</strong></div>
+  <div class="stat"><span class="label">Vidas</span><div class="lives" id="lives" aria-label="Vidas"><i></i><i></i><i></i></div></div>
+  <div class="hud-tools">
+    <button class="hud-btn" id="btn-sound" aria-label="Desligar som e vibração" title="Som e vibração">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/><path class="mute" d="M22 9l-6 6M16 9l6 6" hidden/></svg>
+    </button>
+    <button class="hud-btn" id="btn-pause" aria-label="Pausar" title="Pausar (Esc)">
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+    </button>
+  </div>
+</div>
+<p id="status" class="sr" role="status" aria-live="polite"></p>
+
+<div id="dock" aria-label="Resposta">
+  <div id="answer" class="empty">?</div>
+  <div id="pad">
+    <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
+    <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
+    <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
+    <button class="key del" data-k="back" aria-label="Apagar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><path d="M18 9l-6 6M12 9l6 6"/></svg>
+    </button>
+    <button class="key" data-k="0">0</button>
+  </div>
+</div>
+
+<main id="screen"></main>
+
+<script>
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+</script>
+<script>
+(() => {
+  const root = document.documentElement;
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const hud = document.getElementById('hud');
+  const $score = document.getElementById('score');
+  const $level = document.getElementById('level');
+  const $lives = document.getElementById('lives');
+  const dock = document.getElementById('dock');
+  const answerEl = document.getElementById('answer');
+  const pad = document.getElementById('pad');
+  const screen = document.getElementById('screen');
+  const pauseBtn = document.getElementById('btn-pause');
+  const FONT = '"Atkinson Hyperlegible", system-ui, sans-serif';
+  const GRID = 28;
+
+  let W = 0, H = 0, dpr = 1;
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Ground sits just above the answer dock.
+  function groundY() {
+    if (state !== 'play') return H - 24;
+    return dock.getBoundingClientRect().top - 12;
+  }
+
+  const MODES = {
+    add: { name: 'Adição', desc: 'Somas simples', ops: ['+'], sym: '+' },
+    sub: { name: 'Subtração', desc: 'Diferenças sem negativos', ops: ['-'], sym: '−' },
+    mul: { name: 'Multiplicação', desc: 'Tabuada de 2 a 10', ops: ['×'], sym: '×' },
+    div: { name: 'Divisão', desc: 'Divisões exatas', ops: ['÷'], sym: '÷' },
+    mix: { name: 'Misturado', desc: 'Todas as operações', ops: ['+', '-', '×', '÷'], sym: '≡' },
+  };
+  const OP_NAMES = { '+': 'Adição', '-': 'Subtração', '×': 'Multiplicação', '÷': 'Divisão' };
+
+  let state = 'menu';
+  let modeName = '', ops = ['+'];
+  let falling = [], bursts = [], typed = '';
+  let score = 0, lives = 3, level = 1, spawnTimer = 0, lastT = 0;
+  let flash = 0;
+  let best = loadBest();
+  let pending = null; // timer for an exact answer that another answer may extend
+
+  function loadBest() {
+    try { return Number(localStorage.getItem('caos-best')) || 0; } catch (e) { return 0; }
+  }
+  function saveBest(v) {
+    try { localStorage.setItem('caos-best', String(v)); } catch (e) { /* storage blocked: keep going */ }
+  }
+
+  // Som e vibração: tons sintetizados (sem arquivos), ligados por um botão.
+  let audio = null;
+  let muted = loadMuted();
+  function loadMuted() {
+    try { return localStorage.getItem('caos-mute') === '1'; } catch (e) { return false; }
+  }
+  function saveMuted(v) {
+    try { localStorage.setItem('caos-mute', v ? '1' : '0'); } catch (e) { /* storage blocked */ }
+  }
+  // Web Audio só pode começar após um toque do jogador.
+  function ensureAudio() {
+    if (!audio) {
+      try { const C = window.AudioContext || window.webkitAudioContext; if (C) audio = new C(); } catch (e) { audio = null; }
+    }
+    if (audio && audio.state === 'suspended') audio.resume().catch(() => {});
+  }
+  function tone(freq, start, dur, type = 'sine', gain = 0.16) {
+    const t = audio.currentTime + start;
+    const o = audio.createOscillator();
+    const g = audio.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(audio.destination);
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  }
+  const SOUNDS = {
+    hit: () => { tone(660, 0, 0.12); tone(990, 0.07, 0.16); },
+    miss: () => { tone(220, 0, 0.18, 'triangle', 0.12); },
+    life: () => { tone(330, 0, 0.2, 'triangle'); tone(196, 0.14, 0.3, 'triangle'); },
+    level: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, i * 0.09, 0.2)); },
+    over: () => { [392, 330, 262].forEach((f, i) => tone(f, i * 0.18, 0.3, 'triangle')); },
+  };
+  function sound(name) {
+    if (muted || !audio || !SOUNDS[name]) return;
+    SOUNDS[name]();
+  }
+  function buzz(pattern) {
+    if (muted) return;
+    try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) { /* not supported */ }
+  }
+  // Texto para leitor de tela: o canvas não é lido sozinho.
+  const $status = document.getElementById('status');
+  function announce(msg) { $status.textContent = msg; }
+
+  function rnd(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+
+  // One problem for the chosen operations; difficulty grows with level.
+  function makeProblem(lv, opList) {
+    const op = opList[rnd(0, opList.length - 1)];
+    // Each level widens the numbers; the tiers climb faster than before.
+    const max = 8 + lv * 6;                     // soma/subtração: 14 no nível 1, 38 no 5, 68 no 10
+    const mulA = Math.min(12, 3 + lv);          // fatores: 2–4 × 2–5 no nível 1, 2–12 × 2–12 a partir do 9
+    const mulB = Math.min(12, 4 + lv);
+    let a, b, answer;
+    if (op === '+') { a = rnd(1, max); b = rnd(1, max); answer = a + b; }
+    else if (op === '-') { a = rnd(1, max); b = rnd(1, max); if (b > a) [a, b] = [b, a]; answer = a - b; }
+    else if (op === '×') { a = rnd(2, mulA); b = rnd(2, mulB); answer = a * b; }
+    else { const q = rnd(2, mulA); b = rnd(2, mulB); a = q * b; answer = q; }
+    return { text: `${a} ${op} ${b}`, answer: String(answer), op };
+  }
+
+  function spawn() {
+    const p = makeProblem(level, ops);
+    const size = 52;
+    const margin = 100;
+    falling.push({
+      text: p.text, answer: p.answer, op: p.op,
+      x: margin + Math.random() * Math.max(10, W - margin * 2),
+      y: -size,
+      speed: 32 + level * 10 + Math.random() * 18,
+      size,
+    });
+  }
+
+  function palette() {
+    const s = getComputedStyle(root);
+    const g = (n) => s.getPropertyValue(n).trim();
+    return {
+      paper: g('--paper'), grid: g('--grid'), card: g('--card'), ink: g('--ink'), rule: g('--rule'),
+      danger: g('--danger'), ok: g('--ok'),
+      ops: { '+': g('--op-add'), '-': g('--op-sub'), '×': g('--op-mul'), '÷': g('--op-div') },
+    };
+  }
+
+  function burst(x, y, color) {
+    for (let i = 0; i < 16; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const sp = 50 + Math.random() * 180;
+      bursts.push({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 40, life: 1, color });
+    }
+  }
+
+  function shakeAnswer() {
+    answerEl.classList.remove('shake');
+    void answerEl.offsetWidth; // restart the animation
+    answerEl.classList.add('shake');
+  }
+
+  function submit() {
+    clearTimeout(pending); pending = null;
+    if (typed === '') return;
+    // Remove the lowest falling problem whose answer matches.
+    let hit = -1, bestY = -Infinity;
+    falling.forEach((f, i) => { if (f.answer === typed && f.y > bestY) { bestY = f.y; hit = i; } });
+    if (hit >= 0) {
+      const f = falling[hit];
+      score += 10 + level * 3;
+      burst(f.x, f.y + f.size / 2, palette().ops[f.op]);
+      falling.splice(hit, 1);
+      sound('hit');
+      announce(`Acertou. ${score} pontos.`);
+      const newLevel = 1 + Math.floor(score / 150);
+      if (newLevel !== level) {
+        level = newLevel; flash = 1;
+        sound('level');
+        announce(`Nível ${level}.`);
+      }
+    } else {
+      flash = -1;
+      shakeAnswer();
+      sound('miss');
+      buzz(40);
+    }
+    typed = '';
+    updateAnswer();
+    updateHud();
+  }
+
+  function updateAnswer() {
+    answerEl.textContent = typed || '?';
+    answerEl.classList.toggle('empty', typed === '');
+  }
+
+  function updateHud() {
+    $score.textContent = String(score);
+    $level.textContent = String(level);
+    [...$lives.children].forEach((dot, i) => dot.classList.toggle('lost', i >= lives));
+  }
+
+  function show(html) {
+    screen.innerHTML = html;
+    screen.hidden = false;
+    screen.scrollTop = 0;
+  }
+
+  function showMenu() {
+    state = 'menu';
+    hud.hidden = true;
+    dock.style.display = 'none';
+    const cards = Object.entries(MODES).map(([key, m]) => `
+      <li><button class="mode" data-mode="${key}" data-op="${key}">
+        <span class="sym" aria-hidden="true">${m.sym}</span>
+        <span class="sym-text"><strong>${m.name}</strong><small>${m.desc}</small></span>
+      </button></li>`).join('');
+    show(`
+      <section class="wrap">
+        <h1>Caos de Contas</h1>
+        <p class="lede">Contas caem do topo. Digite o resultado: ele é enviado sozinho ao acertar, antes que a conta chegue ao chão.</p>
+        <div>
+          <ul class="modes">${cards}</ul>
+          <div class="actions" style="margin-top:12px">
+            <button class="btn ghost" data-action="custom" aria-expanded="false">Escolher operações</button>
+          </div>
+          <div class="custom" hidden style="margin-top:12px">
+            <div class="opts">
+              <label class="opt"><input type="checkbox" value="+" checked> Adição (+)</label>
+              <label class="opt"><input type="checkbox" value="-"> Subtração (−)</label>
+              <label class="opt"><input type="checkbox" value="×"> Multiplicação (×)</label>
+              <label class="opt"><input type="checkbox" value="÷"> Divisão (÷)</label>
+            </div>
+            <p class="msg" aria-live="polite"></p>
+            <button class="btn" data-action="custom-start">Jogar com essas operações</button>
+          </div>
+        </div>
+        <p class="meta foot"><a href="privacy.html">Política de privacidade</a></p>
+      </section>
+    `);
+  }
+
+  function endGame() {
+    state = 'over';
+    hud.hidden = true;
+    dock.style.display = 'none';
+    const isRecord = score > 0 && score > best;
+    if (isRecord) { best = score; saveBest(best); }
+    sound('over');
+    announce(`Fim de jogo. ${score} pontos${isRecord ? ', novo recorde' : ''}.`);
+    show(`
+      <section class="wrap">
+        <h1>Fim de jogo</h1>
+        <div>
+          <p class="score-big">${score}</p>
+          <p class="meta">${modeName} · nível ${level} · recorde ${best}</p>
+          ${isRecord ? '<p class="record">Novo recorde!</p>' : ''}
+        </div>
+        <div class="actions">
+          <button class="btn" data-action="again">Jogar de novo</button>
+          <button class="btn ghost" data-action="menu">Escolher modo</button>
+        </div>
+      </section>
+    `);
+  }
+
+  function start(name, opList) {
+    ensureAudio();
+    modeName = name;
+    ops = opList;
+    falling = []; bursts = []; typed = '';
+    score = 0; lives = 3; level = 1; spawnTimer = 0; flash = 0;
+    screen.hidden = true;
+    hud.hidden = false;
+    dock.style.display = 'block';
+    state = 'play';
+    updateAnswer();
+    updateHud();
+    announce(`${name}. Nível 1.`);
+  }
+
+  // Pausa: para as contas e mostra o menu de pausa. Também ao sair do app.
+  function pause() {
+    if (state !== 'play') return;
+    state = 'paused';
+    clearTimeout(pending); pending = null;
+    typed = ''; updateAnswer();
+    show(`
+      <section class="wrap">
+        <h1>Pausado</h1>
+        <div class="actions">
+          <button class="btn" data-action="resume">Continuar</button>
+          <button class="btn ghost" data-action="menu">Escolher modo</button>
+        </div>
+      </section>
+    `);
+    announce('Pausado.');
+  }
+  function resume() {
+    if (state !== 'paused') return;
+    state = 'play';
+    screen.hidden = true;
+    announce('Continuando.');
+  }
+  pauseBtn.addEventListener('click', pause);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+
+  const soundBtn = document.getElementById('btn-sound');
+  function paintSound() {
+    soundBtn.setAttribute('aria-label', muted ? 'Ligar som e vibração' : 'Desligar som e vibração');
+    soundBtn.querySelector('.wave').hidden = muted;
+    soundBtn.querySelector('.mute').hidden = !muted;
+  }
+  soundBtn.addEventListener('click', () => {
+    muted = !muted;
+    saveMuted(muted);
+    paintSound();
+    if (!muted) { ensureAudio(); sound('hit'); }
+  });
+  paintSound();
+
+  // One listener handles every menu and end-screen control.
+  screen.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-mode],[data-action]');
+    if (!t) return;
+    if (t.dataset.mode) {
+      const m = MODES[t.dataset.mode];
+      start(m.name, m.ops);
+      return;
+    }
+    const action = t.dataset.action;
+    if (action === 'custom') {
+      const panel = screen.querySelector('.custom');
+      panel.hidden = !panel.hidden;
+      t.setAttribute('aria-expanded', String(!panel.hidden));
+    } else if (action === 'custom-start') {
+      const chosen = [...screen.querySelectorAll('.custom input:checked')].map(i => i.value);
+      if (chosen.length === 0) {
+        screen.querySelector('.msg').textContent = 'Marque pelo menos uma operação.';
+        return;
+      }
+      const name = chosen.length === 4 ? 'Misturado' : chosen.map(o => OP_NAMES[o]).join(' + ');
+      start(name, chosen);
+    } else if (action === 'resume') {
+      resume();
+    } else if (action === 'again') {
+      start(modeName, ops);
+    } else if (action === 'menu') {
+      showMenu();
+    }
+  });
+
+  // One input path for keyboard and on-screen keypad.
+  function press(k) {
+    if (state !== 'play') return;
+    if (/^[0-9]$/.test(k)) { if (typed.length < 5) typed += k; }
+    else if (k === 'back') typed = typed.slice(0, -1);
+    else if (k === 'ok') { submit(); return; } // Enter on a physical keyboard
+    updateAnswer();
+    autoSubmit();
+  }
+
+  // Sends the answer as soon as it is unambiguous, so nobody has to press OK.
+  function autoSubmit() {
+    clearTimeout(pending); pending = null;
+    answerEl.classList.remove('wrong');
+    if (typed === '') return;
+    const exact = falling.some(f => f.answer === typed);
+    const extended = falling.some(f => f.answer.length > typed.length && f.answer.startsWith(typed));
+    if (exact && !extended) { submit(); return; }
+    if (exact) {
+      // Another answer starts with these digits: wait briefly for the next digit.
+      pending = setTimeout(() => { pending = null; if (state === 'play') submit(); }, 600);
+      return;
+    }
+    const possible = falling.some(f => f.answer.startsWith(typed));
+    if (!possible) {
+      // No falling problem can match: keep the digits visible in red until the
+      // player corrects them with the delete key.
+      flash = -1;
+      answerEl.classList.add('wrong');
+      shakeAnswer();
+    }
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (state === 'play') pause(); else if (state === 'paused') resume();
+      return;
+    }
+    if (state !== 'play') return;
+    const k = e.key === 'Enter' ? 'ok' : e.key === 'Backspace' ? 'back' : e.key;
+    if (k === 'ok' || k === 'back' || /^[0-9]$/.test(k)) { e.preventDefault(); press(k); }
+  });
+
+  pad.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-k]');
+    if (b) press(b.dataset.k);
+  });
+
+  function update(dt) {
+    if (state !== 'play') return;
+    spawnTimer -= dt;
+    const interval = Math.max(0.75, 2.5 - level * 0.15);
+    if (spawnTimer <= 0) { spawn(); spawnTimer = interval; }
+
+    for (const f of falling) f.y += f.speed * dt;
+
+    const floor = groundY();
+    for (let i = falling.length - 1; i >= 0; i--) {
+      if (falling[i].y + falling[i].size >= floor) {
+        falling.splice(i, 1);
+        lives--;
+        flash = -1;
+        if (lives <= 0) { updateHud(); endGame(); return; }
+        sound('life');
+        buzz([80, 60, 80]);
+        announce(`Conta perdida. Vidas: ${lives}.`);
+      }
+    }
+    for (const b of bursts) { b.x += b.vx * dt; b.y += b.vy * dt; b.vy += 240 * dt; b.life -= dt * 1.5; }
+    bursts = bursts.filter(b => b.life > 0);
+    flash *= Math.pow(0.02, dt);
+    updateHud();
+  }
+
+  // Papel quadriculado desenhado no canvas.
+  function drawGrid(p) {
+    ctx.fillStyle = p.paper;
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = p.grid;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0.5; x < W; x += GRID) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+    for (let y = 0.5; y < H; y += GRID) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+    ctx.stroke();
+  }
+
+  function draw() {
+    const p = palette();
+    ctx.globalAlpha = 1;
+    drawGrid(p);
+
+    if (Math.abs(flash) > 0.01) {
+      ctx.globalAlpha = Math.min(0.12, Math.abs(flash) * 0.12);
+      ctx.fillStyle = flash > 0 ? p.ok : p.danger;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+
+    if (state !== 'play') return;
+
+    // Linha de base do caderno
+    const floor = groundY();
+    ctx.fillStyle = p.danger;
+    ctx.globalAlpha = 0.6;
+    ctx.fillRect(0, floor, W, 2);
+    ctx.globalAlpha = 1;
+
+    // Contas: cartões brancos com borda de grafite e marca da operação
+    ctx.font = `700 22px ${FONT}`;
+    for (const f of falling) {
+      const tw = ctx.measureText(f.text).width;
+      const w = Math.max(132, tw + 64);
+      const x = f.x - w / 2;
+      roundRect(x, f.y, w, f.size, 12);
+      ctx.shadowColor = 'rgba(27, 42, 74, 0.16)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetY = 5;
+      ctx.fillStyle = p.card;
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.strokeStyle = p.rule;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = p.ops[f.op];
+      ctx.beginPath();
+      ctx.arc(x + 22, f.y + f.size / 2, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = p.ink;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(f.text, x + w / 2 + 10, f.y + f.size / 2 + 1);
+    }
+
+    for (const b of bursts) {
+      ctx.globalAlpha = Math.max(0, b.life);
+      ctx.fillStyle = b.color;
+      ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function frame(t) {
+    const dt = Math.min(0.05, (t - lastT) / 1000 || 0);
+    lastT = t;
+    update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  showMenu();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
